@@ -1,4 +1,4 @@
-﻿using System.Net.Mime;
+using System.Net.Mime;
 using Ardalis.ListStartupServices;
 using BlazorAdmin;
 using BlazorAdmin.Services;
@@ -17,14 +17,19 @@ using Microsoft.eShopWeb.Web.Configuration;
 using Microsoft.eShopWeb.Web.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
+// Crear el constructor de la aplicación web
 var builder = WebApplication.CreateBuilder(args);
 
+// Agregar la consola como proveedor de registro
 builder.Logging.AddConsole();
 
+// Configurar los servicios de la aplicación
 Microsoft.eShopWeb.Infrastructure.Dependencies.ConfigureServices(builder.Configuration, builder.Services);
 
+// Configurar las cookies
 builder.Services.AddCookieSettings();
 
+// Configurar la autenticación con cookies
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -33,34 +38,36 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.SameSite = SameSiteMode.Lax;
     });
 
+// Configurar Identity
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
            .AddDefaultUI()
            .AddEntityFrameworkStores<AppIdentityDbContext>()
-                           .AddDefaultTokenProviders();
+           .AddDefaultTokenProviders();
 
+// Agregar el servicio de gestión de reclamaciones de tokens
 builder.Services.AddScoped<ITokenClaimsService, IdentityTokenClaimService>();
 builder.Configuration.AddEnvironmentVariables();
 builder.Services.AddCoreServices(builder.Configuration);
 builder.Services.AddWebServices(builder.Configuration);
 
-// Add memory cache services
+// Agregar servicios de caché en memoria
 builder.Services.AddMemoryCache();
 builder.Services.AddRouting(options =>
 {
-    // Replace the type and the name used to refer to it with your own
-    // IOutboundParameterTransformer implementation
+    // Configurar la transformación de parámetros en la ruta
     options.ConstraintMap["slugify"] = typeof(SlugifyParameterTransformer);
 });
 
+// Configurar MVC
 builder.Services.AddMvc(options =>
 {
     options.Conventions.Add(new RouteTokenTransformerConvention(
              new SlugifyParameterTransformer()));
-
 });
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages(options =>
 {
+    // Autorizar la página de "Checkout" del carrito de compras
     options.Conventions.AuthorizePage("/Basket/Checkout");
 });
 builder.Services.AddHttpContextAccessor();
@@ -74,18 +81,18 @@ builder.Services.Configure<ServiceConfig>(config =>
     config.Path = "/allservices";
 });
 
-// blazor configuration
+// Configuración de Blazor
 var configSection = builder.Configuration.GetRequiredSection(BaseUrlConfiguration.CONFIG_NAME);
 builder.Services.Configure<BaseUrlConfiguration>(configSection);
 var baseUrlConfig = configSection.Get<BaseUrlConfiguration>();
 
-// Blazor Admin Required Services for Prerendering
+// Servicios necesarios para la prerenderización de Blazor Admin
 builder.Services.AddScoped<HttpClient>(s => new HttpClient
 {
     BaseAddress = new Uri(baseUrlConfig!.WebBase)
 });
 
-// add blazor services
+// Agregar servicios de Blazor
 builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddScoped<ToastService>();
@@ -94,12 +101,14 @@ builder.Services.AddBlazorServices();
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
+// Construir la aplicación
 var app = builder.Build();
 
 app.Logger.LogInformation("App created...");
 
 app.Logger.LogInformation("Seeding Database...");
 
+// Sembrar la base de datos
 using (var scope = app.Services.CreateScope())
 {
     var scopedProvider = scope.ServiceProvider;
@@ -119,6 +128,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+// Configurar la base de la URL del catálogo
 var catalogBaseUrl = builder.Configuration.GetValue(typeof(string), "CatalogBaseUrl") as string;
 if (!string.IsNullOrEmpty(catalogBaseUrl))
 {
@@ -129,6 +139,7 @@ if (!string.IsNullOrEmpty(catalogBaseUrl))
     });
 }
 
+// Configurar Health Checks
 app.UseHealthChecks("/health",
     new HealthCheckOptions
     {
@@ -147,6 +158,8 @@ app.UseHealthChecks("/health",
             await context.Response.WriteAsync(result);
         }
     });
+
+// Configurar middleware de desarrollo
 if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Docker")
 {
     app.Logger.LogInformation("Adding Development middleware...");
@@ -162,6 +175,7 @@ else
     app.UseHsts();
 }
 
+// Configurar redirección HTTPS
 app.UseHttpsRedirection();
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
@@ -171,7 +185,7 @@ app.UseCookiePolicy();
 app.UseAuthentication();
 app.UseAuthorization();
 
-
+// Configurar las rutas
 app.MapControllerRoute("default", "{controller:slugify=Home}/{action:slugify=Index}/{id?}");
 app.MapRazorPages();
 app.MapHealthChecks("home_page_health_check", new HealthCheckOptions { Predicate = check => check.Tags.Contains("homePageHealthCheck") });
