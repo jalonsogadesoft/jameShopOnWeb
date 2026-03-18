@@ -1,0 +1,8 @@
+graph TD;
+    A[Web] -->|Uses| B[PublicApi];
+    B -->|Calls| C[ApplicationCore];
+    C -->|Uses| D[Infrastructure];
+    D -->|Connects| E[SQL Server Catalog DB];
+    D -->|Connects| F[Identity DB];
+    A -->|Manages| G[BlazorAdmin];
+    A -->|Shares Code| H[BlazorShared];
